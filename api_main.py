@@ -52,11 +52,11 @@ def format_datetime(user_input):
         exit(1)
 
 # Функция ожидания нужного времени
-def wait_until(target_time):
-    while datetime.now() < target_time:
-        time_left = target_time - datetime.now()
-        print(f"Ожидание {time_left}...")
-        time.sleep(30)  # Проверяем каждую 30 секунд
+# def wait_until(target_time):
+#     while datetime.now() < target_time:
+#         time_left = target_time - datetime.now()
+#         print(f"Ожидание {time_left}...")
+#         time.sleep(30)  # Проверяем каждую 30 секунд
 
 # Запрашиваем время у пользователя
 start_time_str = input("Enter start date (DD/MM/YYYY HH:MM): ")
@@ -65,8 +65,8 @@ end_time_str = input("Enter end date (DD/MM/YYYY HH:MM): ")
 start_time_iso, start_time_dt = format_datetime(start_time_str)
 end_time_iso, _ = format_datetime(end_time_str)
 
-print(f"Ждём старта: {start_time_iso}...")
-wait_until(start_time_dt)
+# print(f"Ждём старта: {start_time_iso}...")
+# wait_until(start_time_dt)
 
 # Конфигурация запроса с учетом введенного eventCode
 command_payload = {
