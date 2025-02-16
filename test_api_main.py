@@ -30,9 +30,6 @@ eventCode = 196893
 if eventCode == 196893:
     event = 'Access Granted by Face'
 
-# Request payloads
-# 
-
 # Функция для преобразования даты в формат API
 def format_datetime(user_input):
     try:
@@ -50,8 +47,8 @@ def wait_until(target_time):
         time.sleep(30)  # Проверяем каждую 30 секунд
 
 # Запрашиваем время у пользователя
-start_time_str = input("Search start date (DD/MM/YYYY HH:MM): ")
-end_time_str = input("Search end date (DD/MM/YYYY HH:MM): ")
+start_time_str = input("Enter start date (DD/MM/YYYY HH:MM): ")
+end_time_str = input("Enter end date (DD/MM/YYYY HH:MM): ")
 
 start_time_iso, start_time_dt = format_datetime(start_time_str)
 end_time_iso, _ = format_datetime(end_time_str)
@@ -107,7 +104,7 @@ if response_events.status_code == 200:
     event_data = response_events.json()
     total_events = event_data['data']['total']
     values = event_data['data']['list']
-    email_body += f'Total events - {total_events} \nEvent period: {start_time_str} to {end_time_str} \nEvent type: {event}\n\n'
+    email_body += f'Total events - {total_events} \nSelected event period: {start_time_str} to {end_time_str} \nSelected event type: {event}\n\n'
     results = []
     attached_person_ids = set()  # Множество для personId с уже прикрепленными фото
     
@@ -173,6 +170,7 @@ if response_events.status_code == 200:
             "Person Id": person_info.get("personId"),
             "Person Code": person_info.get("personCode"),
             "Person Photo": person_info.get("personPhoto"),
+            "Event type": event,
             "Image Filename": person_info.get("image_filename", "N/A")
         }
         results.append(record)
@@ -186,7 +184,7 @@ if response_events.status_code == 200:
     msg = MIMEMultipart()
     msg['From'] = sender
     msg['To'] = recipient
-    msg['Subject'] = f"Log from HCP | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    msg['Subject'] = f"Log from HCP/API | {event}"
     msg.attach(MIMEText(email_body, 'plain'))
     
     part = MIMEBase('application', "octet-stream")

@@ -26,15 +26,53 @@ url_events = '/artemis/api/acs/v1/door/events'
 url_person = '/artemis/api/resource/v1/person/advance/personList'
 url_picture_data = '/artemis/api/resource/v1/person/picture_data'
 
-eventCode = 196893
-if eventCode == 196893:
-    event = 'Access Granted by Face'
+# Добавляем словарь для соответствия названий событий и их кодов
+event_mapping = {
+    "face": 196893,
+    "card": 196894,  # Пример другого события
+    # Добавьте другие события по необходимости
+}
 
-# Request payloads
+# Запрашиваем у пользователя название события
+event_name = input("Enter event name (face/card/fingerprint): ")
+
+# Получаем eventCode на основе введенного названия события
+eventCode = event_mapping.get(event_name)
+if eventCode is None:
+    print("Ошибка: введено неизвестное название события.")
+    exit(1)
+
+# Функция для преобразования даты в формат API
+def format_datetime(user_input):
+    try:
+        dt = datetime.strptime(user_input, "%d/%m/%Y %H:%M")
+        return dt.strftime("%Y-%m-%dT%H:%M:%S+04:00"), dt  # Возвращаем строку и объект datetime
+    except ValueError:
+        print("Ошибка: введите дату в формате ДД/ММ/ГГГГ ЧЧ:ММ")
+        exit(1)
+
+# Функция ожидания нужного времени
+def wait_until(target_time):
+    while datetime.now() < target_time:
+        time_left = target_time - datetime.now()
+        print(f"Ожидание {time_left}...")
+        time.sleep(30)  # Проверяем каждую 30 секунд
+
+# Запрашиваем время у пользователя
+start_time_str = input("Enter start date (DD/MM/YYYY HH:MM): ")
+end_time_str = input("Enter end date (DD/MM/YYYY HH:MM): ")
+
+start_time_iso, start_time_dt = format_datetime(start_time_str)
+end_time_iso, _ = format_datetime(end_time_str)
+
+print(f"Ждём старта: {start_time_iso}...")
+wait_until(start_time_dt)
+
+# Конфигурация запроса с учетом введенного eventCode
 command_payload = {
-    "startTime": "2025-02-12T08:00:00+04:00",
-    "endTime": "2025-02-12T20:00:00+04:00",
-    "eventType": 196893,
+    "startTime": start_time_iso,
+    "endTime": end_time_iso,
+    "eventType": eventCode,  # Используем eventCode, соответствующий введенному событию
     "personName": "",
     "doorIndexCodes": ["3"],
     "pageNo": 1,
@@ -61,6 +99,13 @@ def clean_base64(base64_string):
         base64_string = base64_string[len("data:image/jpeg;base64,"):]  
     return re.sub(r"[^a-zA-Z0-9+/=]", "", base64_string)
 
+def format_event_time(iso_time):
+    try:
+        dt = datetime.strptime(iso_time[:19], "%Y-%m-%dT%H:%M:%S")  # Убираем смещение `+04:00`
+        return dt.strftime("%d/%m/%Y %H:%M:%S")
+    except ValueError:
+        return "Invalid date"
+
 # API Calls
 headers_events = generate_signature(url_events, command_payload)
 response_events = requests.post(f'{endpoint}{url_events}', headers=headers_events, json=command_payload, verify=False)
@@ -71,11 +116,15 @@ if response_events.status_code == 200:
     event_data = response_events.json()
     total_events = event_data['data']['total']
     values = event_data['data']['list']
-    email_body += f'Total events: {total_events}\nEvent type: {event}\n\n'
+    email_body += f'Total events - {total_events} \nSelected event period: {start_time_str} to {end_time_str} \nSelected event type: Access granted by {event_name}\n\n'
     results = []
     attached_person_ids = set()  # Множество для personId с уже прикрепленными фото
     
     for entry in values:
+        # Проверяем, соответствует ли событие введенному типу
+        if entry.get('eventType') != eventCode:
+            continue  # Пропускаем события, которые не соответствуют введенному типу
+        
         name = entry['personName']
         person_payload = {
             "pageNo": 1,
@@ -131,32 +180,34 @@ if response_events.status_code == 200:
         
         record = {
             "Name": name,
-            "Check in time": entry['eventTime'],
+            "Check in time": format_event_time(entry['eventTime']),  # Теперь в удобном формате
             "Check point name": entry['doorName'],
             "Temperature": entry.get('temperatureData', ''),
             "Person Id": person_info.get("personId"),
             "Person Code": person_info.get("personCode"),
             "Person Photo": person_info.get("personPhoto"),
+            "Event type": 'Access granted by ' + event_name,  # Используем введенное название события
             "Image Filename": person_info.get("image_filename", "N/A")
         }
         results.append(record)
         
-        email_body += f"Name: {name}\nCheck in time: {entry['eventTime']}\nCheck point: {entry['doorName']}\n"
+        email_body += f"Name: {name}\nCheck in time: {format_event_time(entry['eventTime'])}\nCheck point: {entry['doorName']}\n"
         email_body += f"Person Id: {person_info.get('personId')}\nPerson Code: {person_info.get('personCode')}\nPerson Photo: {person_info.get('personPhoto')}\n\n"
 
-    with open('results.json', 'w') as file:
+    filename = f"{name}_log.json"
+    with open(filename, 'w') as file:
         json.dump(results, file, indent=4)
     
     msg = MIMEMultipart()
     msg['From'] = sender
     msg['To'] = recipient
-    msg['Subject'] = f"Log from HCP | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    msg['Subject'] = f"Event log from HCP | Access granted by {event_name}"
     msg.attach(MIMEText(email_body, 'plain'))
     
     part = MIMEBase('application', "octet-stream")
-    part.set_payload(open('results.json', "rb").read())
+    part.set_payload(open(filename, "rb").read())
     encoders.encode_base64(part)
-    part.add_header('Content-Disposition', 'attachment; filename="results.json"')
+    part.add_header('Content-Disposition', f'attachment; filename= "{filename}"')
     msg.attach(part)
 
     # Прикрепляем изображения
