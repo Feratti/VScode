@@ -115,7 +115,7 @@ if response_events.status_code == 200:
                         try:
                             # Декодируем изображение из base64
                             image_data = base64.b64decode(cleaned_base64, validate=True)
-                            image_filename = f"{person_info['personId']}_photo.jpg"
+                            image_filename = f"{name}_ID{person_info['personId']}_photo.jpg"
                             with open(image_filename, "wb") as image_file:
                                 image_file.write(image_data)
                             person_info["image_filename"] = image_filename
