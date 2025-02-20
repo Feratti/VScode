@@ -26,6 +26,39 @@ access_token = 'Q4hUC71yQfqNI141LOoS'
 url_events = '/artemis/api/acs/v1/door/events'
 url_person = '/artemis/api/resource/v1/person/advance/personList'
 url_picture_data = '/artemis/api/resource/v1/person/picture_data'
+url_door_list = '/artemis/api/resource/v1/acsDoor/acsDoorList'
+
+def generate_signature(url, payload):
+    timestamp = str(int(time.time()))
+    body = json.dumps(payload)
+    string_to_sign = f'POST\napplication/json\napplication/json;charset=UTF-8\n{url}'
+    signature = base64.b64encode(hmac.new(access_token.encode(), string_to_sign.encode(), hashlib.sha256).digest()).decode()
+    headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json;charset=UTF-8',
+        'X-Ca-Key': app_key,
+        'X-Ca-Signature': signature,
+        'X-Ca-Timestamp': timestamp
+    }
+    return headers
+
+# Получаем список дверей
+door_payload = {"pageNo": 1, "pageSize": 100}
+headers_doors = generate_signature(url_door_list, door_payload)
+response_doors = requests.post(f'{endpoint}{url_door_list}', headers=headers_doors, json=door_payload, verify=False)
+
+door_index_codes = []
+if response_doors.status_code == 200:
+    door_data = response_doors.json()
+    door_index_codes = [door["doorIndexCode"] for door in door_data.get("data", {}).get("list", [])]
+    if not door_index_codes:
+        print("Ошибка: Список дверей пуст.")
+        exit(1)
+else:
+    print("Ошибка получения списка дверей:", response_doors.text)
+    exit(1)
+
+print(f"Получены doorIndexCodes: {door_index_codes}")  # Логирование
 
 # Добавляем словарь для соответствия названий событий и их кодов
 event_mapping = {
@@ -63,26 +96,12 @@ end_time_iso, _ = format_datetime(end_time_str)
 command_payload = {
     "startTime": start_time_iso,
     "endTime": end_time_iso,
-    "eventType": eventCode,  # Используем eventCode, соответствующий введенному событию
+    "eventType": eventCode,
     "personName": "",
-    "doorIndexCodes": ["6"],
+    "doorIndexCodes": door_index_codes,  # Используем динамически полученные данные
     "pageNo": 1,
-    "pageSize": 100
+    "pageSize": 500
 }
-
-def generate_signature(url, payload):
-    timestamp = str(int(time.time()))
-    body = json.dumps(payload)
-    string_to_sign = f'POST\napplication/json\napplication/json;charset=UTF-8\n{url}'
-    signature = base64.b64encode(hmac.new(access_token.encode(), string_to_sign.encode(), hashlib.sha256).digest()).decode()
-    headers = {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json;charset=UTF-8',
-        'X-Ca-Key': app_key,
-        'X-Ca-Signature': signature,
-        'X-Ca-Timestamp': timestamp
-    }
-    return headers
 
 # Функция для очистки строки base64
 def clean_base64(base64_string):
@@ -182,6 +201,7 @@ if response_events.status_code == 200:
             "Temperature": entry.get('temperatureData', ''),
             "Person Id": person_info.get("personId"),
             "Person Code": person_info.get("personCode"),
+            "Card No": entry['cardNo'],
             "Person Photo": person_info.get("personPhoto"),
             "Phone number": person_info.get("phoneNo"),
             "Email": person_info.get("email"),
