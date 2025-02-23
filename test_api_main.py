@@ -211,7 +211,7 @@ if response_events.status_code == 200:
         }
         results.append(record)
         
-        # email_body += f"Name: {name}\nCheck in time: {format_event_time(entry['eventTime'])}\nCheck point: {entry['doorName']}\n"
+        #  email_body += f"Name: {name}\nCheck in time: {format_event_time(entry['eventTime'])}\nCheck point: {entry['doorName']}\n"
         # email_body += f"Person Id: {person_info.get('personId')}\nPerson Code: {person_info.get('personCode')}\nPerson Photo: {person_info.get('personPhoto')}\n\n"
 
     filename = "total_results.csv"
@@ -225,7 +225,7 @@ if response_events.status_code == 200:
     msg = MIMEMultipart()
     msg['From'] = sender
     msg['To'] = recipient
-    msg['Subject'] = f"Event log from HCP | Access granted by {event_name}"
+    msg['Subject'] = f"Event log from HCP | Event: Access granted by {event_name}"
     msg.attach(MIMEText(email_body, 'plain'))
     
     part = MIMEBase('application', "octet-stream")

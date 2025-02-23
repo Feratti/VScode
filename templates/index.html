@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Log System</title>
+    <!-- Подключение Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+        }
+        .event {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .event img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Event Log System</h1>
+        <form id="eventForm">
+            <div class="form-group">
+                <label for="eventName">Event Name (face/card):</label>
+                <select id="eventName" required>
+                    <option value="face">Face</option>
+                    <option value="card">Card</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="startTime">Start Date:</label>
+                <input type="text" id="startTime" placeholder="Select Start Date" required>
+            </div>
+            <div class="form-group">
+                <label for="endTime">End Date:</label>
+                <input type="text" id="endTime" placeholder="Select End Date" required>
+            </div>
+            <button type="submit">Get Events</button>
+        </form>
+        <div class="results" id="results">
+            <!-- Results will be displayed here -->
+        </div>
+    </div>
+
+    <!-- Подключение Flatpickr JS -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        // Инициализация Flatpickr
+        flatpickr("#startTime", {
+            enableTime: true,  // Включить выбор времени
+            dateFormat: "d/m/Y H:i",  // Формат даты
+            time_24hr: true,  // 24-часовой формат времени
+            minDate: "01/01/2024",  // Минимальная дата - сегодня
+        });
+
+        flatpickr("#endTime", {
+            enableTime: true,
+            dateFormat: "d/m/Y H:i",
+            time_24hr: true,
+            minDate: "01/01/2024",
+        });
+
+        // Обработка отправки формы
+        document.getElementById('eventForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const eventName = document.getElementById('eventName').value;
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+
+            fetch('/get-events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ eventName, startTime, endTime }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = '<h2>Results:</h2>';
+                if (data.error) {
+                    resultsDiv.innerHTML += `<p style="color: red;">${data.error}</p>`;
+                } else {
+                    data.forEach(event => {
+                        resultsDiv.innerHTML += `
+                            <div class="event">
+                                <p><strong>Name:</strong> ${event.Name}</p>
+                                <p><strong>Surname:</strong> ${event.Surname}</p>
+                                <p><strong>Check in time:</strong> ${event['Check in time']}</p>
+                                <p><strong>Check point name:</strong> ${event['Check point name']}</p>
+                                <p><strong>Temperature:</strong> ${event.Temperature}</p>
+                                <p><strong>Person Id:</strong> ${event['Person Id']}</p>
+                                <p><strong>Person Code:</strong> ${event['Person Code']}</p>
+                                <p><strong>Card No:</strong> ${event['Card No']}</p>
+                                <p><strong>Phone number:</strong> ${event['Phone number']}</p>
+                                <p><strong>Email:</strong> ${event.Email}</p>
+                                <p><strong>Remark:</strong> ${event.Remark}</p>
+                                <p><strong>Event type:</strong> ${event['Event type']}</p>
+                                <img src="/static/images/${event['Image Filename']}" 
+                                     onerror="this.onerror=null;this.src='/static/images/placeholder.jpg';" 
+                                     alt="Person Photo">
+                                <hr>
+                            </div>
+                        `;
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+    </script>
+</body>
+</html>
